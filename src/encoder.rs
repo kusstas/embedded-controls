@@ -19,6 +19,7 @@ pub trait EncoderConfig: DebouncedInputConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EncoderEvent {
+    NoTurn,
     LeftTurn,
     RightTurn,
 }
@@ -55,7 +56,7 @@ where
     <SwtA as InputSwitch>::Error: From<<SwtB as InputSwitch>::Error>,
 {
     type Timestamp = Instant<Clk>;
-    type Event = Option<EncoderEvent>;
+    type Event = EncoderEvent;
     type Error = <SwtA as InputSwitch>::Error;
 
     fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error> {
@@ -63,46 +64,35 @@ where
         let b_event = self.debounced_input_b.update(now)?;
 
         fn check_event(
-            event: Option<DebouncedInputEvent>,
+            event: DebouncedInputEvent,
             antogonist_state: bool,
             counter_direct: EncoderCounter,
         ) -> EncoderCounter {
             match event {
-                Some(event) => match event {
-                    DebouncedInputEvent::Pressed => {
-                        if antogonist_state {
-                            -counter_direct
-                        } else {
-                            counter_direct
-                        }
-                    }
-                    DebouncedInputEvent::Released => {
-                        if antogonist_state {
-                            counter_direct
-                        } else {
-                            -counter_direct
-                        }
-                    }
-                },
-                None => 0,
+                DebouncedInputEvent::Rise if antogonist_state => -counter_direct,
+                DebouncedInputEvent::Rise => counter_direct,
+                DebouncedInputEvent::Fall if antogonist_state => counter_direct,
+                DebouncedInputEvent::Fall => -counter_direct,
+                _ => Default::default(),
             }
         }
 
-        self.counter += check_event(a_event, self.debounced_input_b.get_state(), 1);
-        self.counter += check_event(b_event, self.debounced_input_a.get_state(), -1);
+        self.counter += check_event(a_event, self.debounced_input_b.is_high(), 1);
+        self.counter += check_event(b_event, self.debounced_input_a.is_high(), -1);
 
-        if self.counter != 0 && ((self.counter % Cfg::COUNTER_DIVIDER) == 0) {
-            let turn = if self.counter > 0 {
-                EncoderEvent::RightTurn
+        Ok(
+            if self.counter != 0 && self.counter % Cfg::COUNTER_DIVIDER == 0 {
+                let turn = if self.counter.is_positive() {
+                    EncoderEvent::RightTurn
+                } else {
+                    EncoderEvent::LeftTurn
+                };
+
+                self.counter = 0;
+                turn
             } else {
-                EncoderEvent::LeftTurn
-            };
-
-            self.counter = 0;
-
-            Ok(Some(turn))
-        } else {
-            Ok(None)
-        }
+                EncoderEvent::NoTurn
+            },
+        )
     }
 }

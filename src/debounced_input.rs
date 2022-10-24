@@ -18,8 +18,10 @@ pub trait DebouncedInputConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DebouncedInputEvent {
-    Pressed,
-    Released,
+    Low,
+    High,
+    Rise,
+    Fall,
 }
 
 impl<InputSwitch, Timestamp, Config: ?Sized> DebouncedInput<InputSwitch, Timestamp, Config> {
@@ -32,8 +34,12 @@ impl<InputSwitch, Timestamp, Config: ?Sized> DebouncedInput<InputSwitch, Timesta
         }
     }
 
-    pub fn get_state(&self) -> bool {
+    pub fn is_high(&self) -> bool {
         self.state
+    }
+
+    pub fn is_low(&self) -> bool {
+        !self.state
     }
 
     pub fn borrow_input_switch(&self) -> &InputSwitch {
@@ -55,7 +61,7 @@ where
     <<Cfg as DebouncedInputConfig>::D as TryFrom<Generic<<Clk as Clock>::T>>>::Error: Debug,
 {
     type Timestamp = Instant<Clk>;
-    type Event = Option<DebouncedInputEvent>;
+    type Event = DebouncedInputEvent;
     type Error = <Swt as InputSwitch>::Error;
 
     fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error> {
@@ -74,11 +80,11 @@ where
                         self.state = state;
                         self.disturbance_timestamp = None;
 
-                        return Ok(Some(if self.state {
-                            DebouncedInputEvent::Pressed
+                        return Ok(if self.state {
+                            DebouncedInputEvent::Rise
                         } else {
-                            DebouncedInputEvent::Released
-                        }));
+                            DebouncedInputEvent::Fall
+                        });
                     }
                 }
                 None => {
@@ -89,6 +95,10 @@ where
             self.disturbance_timestamp = None;
         }
 
-        Ok(None)
+        Ok(if self.state {
+            DebouncedInputEvent::High
+        } else {
+            DebouncedInputEvent::Low
+        })
     }
 }

@@ -4,9 +4,7 @@ mod button;
 mod debounced_input;
 mod encoder;
 
-pub use button::{
-    Button, ButtonConfig, ButtonEvent, ClickCount, ClickEventConfig, HoldEventConfig,
-};
+pub use button::{Button, ButtonConfig, ButtonEvent, DoubleClickEventConfig, HoldEventConfig};
 pub use debounced_input::{DebouncedInput, DebouncedInputConfig, DebouncedInputEvent};
 pub use encoder::{Encoder, EncoderConfig, EncoderCounter, EncoderEvent};
 

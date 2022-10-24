@@ -4,20 +4,16 @@ use core::{fmt::Debug, marker::PhantomData};
 use embedded_time::{duration::Generic, Clock, Instant};
 use switch_hal::InputSwitch;
 
-pub type ClickCount = u8;
-
 pub struct Button<InputSwitch, Timestamp, Config: ?Sized> {
     debounced_input: DebouncedInput<InputSwitch, Timestamp, Config>,
     event_start_timestamp: Option<Timestamp>,
-    press_count: ClickCount,
     hold: bool,
     config: PhantomData<Config>,
 }
 
-pub struct ClickEventConfig<Duration> {
+pub struct DoubleClickEventConfig<Duration> {
     pub max_press_duration: Duration,
     pub max_gap_duration: Duration,
-    pub max_count: ClickCount,
 }
 
 pub struct HoldEventConfig<Duration> {
@@ -26,13 +22,16 @@ pub struct HoldEventConfig<Duration> {
 }
 
 pub trait ButtonConfig: DebouncedInputConfig {
-    const CLICK_EVENT: Option<ClickEventConfig<Self::D>>;
+    const DOUBLE_CLICK_EVENT: Option<DoubleClickEventConfig<Self::D>>;
     const HOLD_EVENT: Option<HoldEventConfig<Self::D>>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ButtonEvent {
-    Clicked(ClickCount),
+    NoEvent,
+    Pressed,
+    Clicked,
+    DoubleClicked,
     HoldStarted,
     Holding,
     HoldFinished,
@@ -43,21 +42,20 @@ impl<InputSwitch, Timestamp, Config: ?Sized> Button<InputSwitch, Timestamp, Conf
         Button {
             debounced_input: DebouncedInput::new(input_switch),
             event_start_timestamp: None,
-            press_count: Default::default(),
             hold: false,
             config: PhantomData::<Config>,
         }
     }
 
-    pub fn get_pressed(&self) -> bool {
-        self.debounced_input.get_state()
+    pub fn is_pressed(&self) -> bool {
+        self.debounced_input.is_high()
     }
 
-    pub fn get_released(&self) -> bool {
-        !self.get_pressed()
+    pub fn is_released(&self) -> bool {
+        self.debounced_input.is_low()
     }
 
-    pub fn get_hold(&self) -> bool {
+    pub fn is_hold(&self) -> bool {
         self.hold
     }
 
@@ -80,20 +78,23 @@ where
     <<Cfg as DebouncedInputConfig>::D as TryFrom<Generic<<Clk as Clock>::T>>>::Error: Debug,
 {
     type Timestamp = Instant<Clk>;
-    type Event = (Option<DebouncedInputEvent>, Option<ButtonEvent>);
+    type Event = ButtonEvent;
     type Error = <Swt as InputSwitch>::Error;
 
     fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error> {
         let debounced_event = self.debounced_input.update(now.clone())?;
 
-        match &debounced_event {
-            Some(event) => match event {
-                DebouncedInputEvent::Pressed => {}
-                DebouncedInputEvent::Released => {}
-            },
-            None => {}
-        }
+        let elapsed: Option<<Cfg as DebouncedInputConfig>::D> = match &self.event_start_timestamp {
+            Some(event_start_timestamp) => Some(
+                event_start_timestamp
+                    .checked_duration_until(&now)
+                    .unwrap()
+                    .try_into()
+                    .unwrap(),
+            ),
+            None => None,
+        };
 
-        Ok((debounced_event, None))
+        Ok(ButtonEvent::NoEvent)
     }
 }

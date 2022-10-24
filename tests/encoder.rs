@@ -3,9 +3,9 @@ use embedded_controls::{
 };
 use embedded_time::{duration::Milliseconds, Clock, Instant};
 
-mod mocks;
+mod common;
 
-use crate::mocks::{MockClock, MockInputSwitch};
+use crate::common::{MockClock, MockInputSwitch};
 
 struct TestEncoderConfig;
 
@@ -17,6 +17,9 @@ impl DebouncedInputConfig for TestEncoderConfig {
 impl EncoderConfig for TestEncoderConfig {
     const COUNTER_DIVIDER: EncoderCounter = 4;
 }
+
+type TestEncoder<InputSwitchA, InputSwitchB> =
+    Encoder<InputSwitchA, InputSwitchB, Instant<MockClock>, TestEncoderConfig>;
 
 #[test]
 fn encoder_success() {
@@ -71,43 +74,54 @@ fn encoder_success() {
     let clock = MockClock;
     let input_switch_a = MockInputSwitch::new(&state_results_a);
     let input_switch_b = MockInputSwitch::new(&state_results_b);
-    let mut encoder =
-        Encoder::<_, _, Instant<MockClock>, TestEncoderConfig>::new(input_switch_a, input_switch_b);
+    let mut encoder = TestEncoder::new(input_switch_a, input_switch_b);
 
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
+    for _ in 0..4 {
+        assert_eq!(
+            encoder.update(clock.try_now().unwrap()),
+            Ok(EncoderEvent::NoTurn)
+        );
+    }
+
     assert_eq!(
         encoder.update(clock.try_now().unwrap()),
-        Ok(Some(EncoderEvent::RightTurn))
+        Ok(EncoderEvent::RightTurn)
     );
 
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
+    for _ in 0..3 {
+        assert_eq!(
+            encoder.update(clock.try_now().unwrap()),
+            Ok(EncoderEvent::NoTurn)
+        );
+    }
+
     assert_eq!(
         encoder.update(clock.try_now().unwrap()),
-        Ok(Some(EncoderEvent::RightTurn))
+        Ok(EncoderEvent::RightTurn)
     );
 
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
+    for _ in 0..6 {
+        assert_eq!(
+            encoder.update(clock.try_now().unwrap()),
+            Ok(EncoderEvent::NoTurn)
+        );
+    }
+
     assert_eq!(
         encoder.update(clock.try_now().unwrap()),
-        Ok(Some(EncoderEvent::LeftTurn))
+        Ok(EncoderEvent::LeftTurn)
     );
 
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
+    for _ in 0..3 {
+        assert_eq!(
+            encoder.update(clock.try_now().unwrap()),
+            Ok(EncoderEvent::NoTurn)
+        );
+    }
+
     assert_eq!(
         encoder.update(clock.try_now().unwrap()),
-        Ok(Some(EncoderEvent::LeftTurn))
+        Ok(EncoderEvent::LeftTurn)
     );
 }
 
@@ -119,8 +133,7 @@ fn encoder_error() {
     let clock = MockClock;
     let input_switch_a = MockInputSwitch::new(&state_results_a);
     let input_switch_b = MockInputSwitch::new(&state_results_b);
-    let mut encoder =
-        Encoder::<_, _, Instant<MockClock>, TestEncoderConfig>::new(input_switch_a, input_switch_b);
+    let mut encoder = TestEncoder::new(input_switch_a, input_switch_b);
 
     assert_eq!(
         encoder.update(clock.try_now().unwrap()),
@@ -130,5 +143,8 @@ fn encoder_error() {
         encoder.update(clock.try_now().unwrap()),
         Err("Some error 1")
     );
-    assert_eq!(encoder.update(clock.try_now().unwrap()), Ok(None));
+    assert_eq!(
+        encoder.update(clock.try_now().unwrap()),
+        Ok(EncoderEvent::NoTurn)
+    );
 }
