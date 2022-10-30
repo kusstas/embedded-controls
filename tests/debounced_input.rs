@@ -1,8 +1,8 @@
-use embedded_controls::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent};
-
 mod common;
 
 use crate::common::{MockClock, MockDuration, MockInputSwitch};
+
+use embedded_controls::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent};
 
 struct TestDebouncedInputConfig;
 

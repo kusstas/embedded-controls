@@ -18,17 +18,22 @@ pub trait ButtonConfig: DebouncedInputConfig {
     const HOLD_EVENT: Option<HoldEventConfig<Self::D>>;
 }
 
+pub enum ButtonState<D> {
+    Idle,
+    Undefined(D),
+    Holding(D),
+    DoubleClickCandidate(D),
+}
+
 pub struct Button<InputSwitch, Config: ButtonConfig> {
     debounced_input: DebouncedInput<InputSwitch, Config>,
-    event_start_timestamp: Option<<<Config as DebouncedInputConfig>::D as Duration>::Instant>,
-    double_click_candidate: bool,
-    hold: bool,
+    state: ButtonState<<<Config as DebouncedInputConfig>::D as Duration>::Instant>,
     config: PhantomData<Config>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ButtonEvent {
-    Nothing,
+    Idle,
     Pressed,
     Clicked,
     DoubleClicked,
@@ -59,9 +64,7 @@ impl<InputSwitch, Config: ButtonConfig> Button<InputSwitch, Config> {
     pub fn new(input_switch: InputSwitch) -> Self {
         Button {
             debounced_input: DebouncedInput::new(input_switch),
-            event_start_timestamp: None,
-            double_click_candidate: false,
-            hold: false,
+            state: ButtonState::Idle,
             config: PhantomData::<Config>,
         }
     }
@@ -75,7 +78,10 @@ impl<InputSwitch, Config: ButtonConfig> Button<InputSwitch, Config> {
     }
 
     pub fn is_holding(&self) -> bool {
-        self.hold
+        match self.state {
+            ButtonState::Holding(_) => true,
+            _ => false,
+        }
     }
 
     pub fn borrow_input_switch(&self) -> &InputSwitch {
@@ -84,5 +90,24 @@ impl<InputSwitch, Config: ButtonConfig> Button<InputSwitch, Config> {
 
     pub fn release_input_switch(self) -> InputSwitch {
         self.debounced_input.release_input_switch()
+    }
+}
+
+impl<Swt: InputSwitch, Cfg: ButtonConfig> Control for Button<Swt, Cfg> {
+    type Timestamp = <<Cfg as DebouncedInputConfig>::D as Duration>::Instant;
+    type Event = ButtonEvent;
+    type Error = <Swt as InputSwitch>::Error;
+
+    fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error> {
+        let debounced_input_event = self.debounced_input.update(now.clone())?;
+
+        match debounced_input_event {
+            DebouncedInputEvent::Low => todo!(),
+            DebouncedInputEvent::High => todo!(),
+            DebouncedInputEvent::Rise => todo!(),
+            DebouncedInputEvent::Fall => todo!(),
+        }
+
+        Ok(ButtonEvent::Idle)
     }
 }

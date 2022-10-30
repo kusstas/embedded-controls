@@ -8,10 +8,16 @@ pub trait DebouncedInputConfig {
     const DEBOUNCE_DURATION: Self::D;
 }
 
+pub enum DebouncedInputState<D> {
+    FixedLow,
+    FixedHigh,
+    RiseDisturbance(D),
+    FallDisturbance(D),
+}
+
 pub struct DebouncedInput<InputSwitch, Config: DebouncedInputConfig> {
     input_switch: InputSwitch,
-    disturbance_timestamp: Option<<<Config as DebouncedInputConfig>::D as Duration>::Instant>,
-    state: bool,
+    state: DebouncedInputState<<<Config as DebouncedInputConfig>::D as Duration>::Instant>,
     config: PhantomData<Config>,
 }
 
@@ -27,18 +33,20 @@ impl<InputSwitch, Config: DebouncedInputConfig> DebouncedInput<InputSwitch, Conf
     pub fn new(input_switch: InputSwitch) -> Self {
         DebouncedInput {
             input_switch,
-            disturbance_timestamp: None,
-            state: false,
+            state: DebouncedInputState::FixedLow,
             config: PhantomData::<Config>,
         }
     }
 
     pub fn is_high(&self) -> bool {
-        self.state
+        match self.state {
+            DebouncedInputState::FixedLow | DebouncedInputState::RiseDisturbance(_) => false,
+            DebouncedInputState::FixedHigh | DebouncedInputState::FallDisturbance(_) => true,
+        }
     }
 
     pub fn is_low(&self) -> bool {
-        !self.state
+        !self.is_high()
     }
 
     pub fn borrow_input_switch(&self) -> &InputSwitch {
@@ -56,35 +64,43 @@ impl<Swt: InputSwitch, Cfg: DebouncedInputConfig> Control for DebouncedInput<Swt
     type Error = <Swt as InputSwitch>::Error;
 
     fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error> {
-        let state = self.input_switch.is_active()?;
+        let input_switch_state = self.input_switch.is_active()?;
 
-        if state != self.state {
-            match &self.disturbance_timestamp {
-                Some(disturbance_timestamp) => {
-                    if Cfg::DEBOUNCE_DURATION
-                        .is_elapsed(disturbance_timestamp, &now)
-                        .unwrap()
-                    {
-                        self.state = state;
-                        self.disturbance_timestamp = None;
-
-                        return Ok(match self.state {
-                            true => DebouncedInputEvent::Rise,
-                            false => DebouncedInputEvent::Fall,
-                        });
-                    }
+        Ok(match &self.state {
+            DebouncedInputState::FixedLow => {
+                if input_switch_state {
+                    self.state = DebouncedInputState::RiseDisturbance(now)
                 }
-                None => {
-                    self.disturbance_timestamp = Some(now);
+                DebouncedInputEvent::Low
+            }
+            DebouncedInputState::FixedHigh => {
+                if !input_switch_state {
+                    self.state = DebouncedInputState::FallDisturbance(now)
+                }
+                DebouncedInputEvent::High
+            }
+            DebouncedInputState::RiseDisturbance(start) => {
+                if !input_switch_state {
+                    self.state = DebouncedInputState::FixedLow;
+                    DebouncedInputEvent::Low
+                } else if Cfg::DEBOUNCE_DURATION.is_elapsed(start, &now).unwrap() {
+                    self.state = DebouncedInputState::FixedHigh;
+                    DebouncedInputEvent::Rise
+                } else {
+                    DebouncedInputEvent::Low
                 }
             }
-        } else {
-            self.disturbance_timestamp = None;
-        }
-
-        Ok(match self.state {
-            true => DebouncedInputEvent::High,
-            false => DebouncedInputEvent::Low,
+            DebouncedInputState::FallDisturbance(start) => {
+                if input_switch_state {
+                    self.state = DebouncedInputState::FixedHigh;
+                    DebouncedInputEvent::High
+                } else if Cfg::DEBOUNCE_DURATION.is_elapsed(start, &now).unwrap() {
+                    self.state = DebouncedInputState::FixedLow;
+                    DebouncedInputEvent::Fall
+                } else {
+                    DebouncedInputEvent::High
+                }
+            }
         })
     }
 }

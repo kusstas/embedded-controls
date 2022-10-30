@@ -1,8 +1,8 @@
-use embedded_controls::{Control, DebouncedInputConfig, Encoder, EncoderConfig, EncoderEvent};
-
 mod common;
 
 use crate::common::{MockClock, MockDuration, MockInputSwitch};
+
+use embedded_controls::{Control, DebouncedInputConfig, Encoder, EncoderConfig, EncoderEvent};
 
 struct TestEncoderConfig;
 
