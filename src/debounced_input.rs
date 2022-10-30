@@ -1,19 +1,18 @@
-use crate::Control;
+use crate::{Control, Duration};
 
-use core::{fmt::Debug, marker::PhantomData};
-use embedded_time::{duration::Generic, Clock, Instant};
+use core::marker::PhantomData;
 use switch_hal::InputSwitch;
 
-pub struct DebouncedInput<InputSwitch, Timestamp, Config: ?Sized> {
-    input_switch: InputSwitch,
-    disturbance_timestamp: Option<Timestamp>,
-    state: bool,
-    config: PhantomData<Config>,
+pub trait DebouncedInputConfig {
+    type D: Duration;
+    const DEBOUNCE_DURATION: Self::D;
 }
 
-pub trait DebouncedInputConfig {
-    type D;
-    const DEBOUNCE_DURATION: Self::D;
+pub struct DebouncedInput<InputSwitch, Config: DebouncedInputConfig> {
+    input_switch: InputSwitch,
+    disturbance_timestamp: Option<<<Config as DebouncedInputConfig>::D as Duration>::Instant>,
+    state: bool,
+    config: PhantomData<Config>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -24,7 +23,7 @@ pub enum DebouncedInputEvent {
     Fall,
 }
 
-impl<InputSwitch, Timestamp, Config: ?Sized> DebouncedInput<InputSwitch, Timestamp, Config> {
+impl<InputSwitch, Config: DebouncedInputConfig> DebouncedInput<InputSwitch, Config> {
     pub fn new(input_switch: InputSwitch) -> Self {
         DebouncedInput {
             input_switch,
@@ -51,16 +50,8 @@ impl<InputSwitch, Timestamp, Config: ?Sized> DebouncedInput<InputSwitch, Timesta
     }
 }
 
-impl<Swt, Clk: ?Sized, Cfg: ?Sized> Control for DebouncedInput<Swt, Instant<Clk>, Cfg>
-where
-    Swt: InputSwitch,
-    Clk: Clock,
-    Cfg: DebouncedInputConfig,
-    <Cfg as DebouncedInputConfig>::D: PartialOrd,
-    <Cfg as DebouncedInputConfig>::D: TryFrom<Generic<<Clk as Clock>::T>>,
-    <<Cfg as DebouncedInputConfig>::D as TryFrom<Generic<<Clk as Clock>::T>>>::Error: Debug,
-{
-    type Timestamp = Instant<Clk>;
+impl<Swt: InputSwitch, Cfg: DebouncedInputConfig> Control for DebouncedInput<Swt, Cfg> {
+    type Timestamp = <<Cfg as DebouncedInputConfig>::D as Duration>::Instant;
     type Event = DebouncedInputEvent;
     type Error = <Swt as InputSwitch>::Error;
 
@@ -70,20 +61,16 @@ where
         if state != self.state {
             match &self.disturbance_timestamp {
                 Some(disturbance_timestamp) => {
-                    let elapsed: Cfg::D = disturbance_timestamp
-                        .checked_duration_until(&now)
+                    if Cfg::DEBOUNCE_DURATION
+                        .is_elapsed(disturbance_timestamp, &now)
                         .unwrap()
-                        .try_into()
-                        .unwrap();
-
-                    if elapsed >= Cfg::DEBOUNCE_DURATION {
+                    {
                         self.state = state;
                         self.disturbance_timestamp = None;
 
-                        return Ok(if self.state {
-                            DebouncedInputEvent::Rise
-                        } else {
-                            DebouncedInputEvent::Fall
+                        return Ok(match self.state {
+                            true => DebouncedInputEvent::Rise,
+                            false => DebouncedInputEvent::Fall,
                         });
                     }
                 }
@@ -95,10 +82,9 @@ where
             self.disturbance_timestamp = None;
         }
 
-        Ok(if self.state {
-            DebouncedInputEvent::High
-        } else {
-            DebouncedInputEvent::Low
+        Ok(match self.state {
+            true => DebouncedInputEvent::High,
+            false => DebouncedInputEvent::Low,
         })
     }
 }

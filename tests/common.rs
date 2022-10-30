@@ -1,27 +1,51 @@
 use std::{cell::RefCell, ops::AddAssign};
 
-use embedded_time::{clock::Error, fraction::Fraction, Clock, Instant};
+use embedded_controls::Duration;
 use switch_hal::InputSwitch;
 
-#[derive(Debug)]
-pub struct MockClock;
+pub struct MockClock {
+    counter: u32,
+}
 
-impl Clock for MockClock {
-    type T = u32;
-    const SCALING_FACTOR: Fraction = Fraction::new(10, 1_000);
-
-    fn try_now(&self) -> Result<Instant<Self>, Error> {
-        static mut TICKS: u32 = 0;
-        unsafe {
-            TICKS += 1;
-        }
-        Ok(Instant::new(unsafe { TICKS }))
-    }
+pub struct MockDuration {
+    counter: u32,
 }
 
 pub struct MockInputSwitch<'a> {
     state_results: &'a [Result<bool, &'static str>],
     index: RefCell<usize>,
+}
+
+impl MockClock {
+    pub fn new() -> Self {
+        MockClock {
+            counter: Default::default(),
+        }
+    }
+
+    pub fn now(&mut self) -> u32 {
+        self.counter += 1;
+        self.counter
+    }
+}
+
+impl MockDuration {
+    pub const fn new(counter: u32) -> Self {
+        MockDuration { counter }
+    }
+}
+
+impl Duration for MockDuration {
+    type Error = ();
+    type Instant = u32;
+
+    fn is_elapsed(&self, from: &Self::Instant, to: &Self::Instant) -> Result<bool, Self::Error> {
+        if to >= from {
+            Ok((to - from) >= self.counter)
+        } else {
+            Err(())
+        }
+    }
 }
 
 impl<'a> MockInputSwitch<'a> {

@@ -1,19 +1,17 @@
 use embedded_controls::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent};
-use embedded_time::{duration::Milliseconds, Clock, Instant};
 
 mod common;
 
-use crate::common::{MockClock, MockInputSwitch};
+use crate::common::{MockClock, MockDuration, MockInputSwitch};
 
 struct TestDebouncedInputConfig;
 
 impl DebouncedInputConfig for TestDebouncedInputConfig {
-    type D = Milliseconds;
-    const DEBOUNCE_DURATION: Milliseconds = Milliseconds(30_u32);
+    type D = MockDuration;
+    const DEBOUNCE_DURATION: MockDuration = MockDuration::new(3);
 }
 
-type TestDebouncedInput<InputSwitch> =
-    DebouncedInput<InputSwitch, Instant<MockClock>, TestDebouncedInputConfig>;
+type TestDebouncedInput<InputSwitch> = DebouncedInput<InputSwitch, TestDebouncedInputConfig>;
 
 #[test]
 fn debounced_input_success() {
@@ -31,40 +29,40 @@ fn debounced_input_success() {
         Ok(false),
     ];
 
-    let clock = MockClock;
+    let mut clock = MockClock::new();
     let input_switch = MockInputSwitch::new(&state_results);
     let mut debounced_input = TestDebouncedInput::new(input_switch);
 
     for _ in 0..4 {
         assert_eq!(
-            debounced_input.update(clock.try_now().unwrap()),
+            debounced_input.update(clock.now()),
             Ok(DebouncedInputEvent::Low)
         );
         assert_eq!(debounced_input.is_high(), false);
     }
 
     assert_eq!(
-        debounced_input.update(clock.try_now().unwrap()),
+        debounced_input.update(clock.now()),
         Ok(DebouncedInputEvent::Rise)
     );
     assert_eq!(debounced_input.is_high(), true);
 
     for _ in 0..4 {
         assert_eq!(
-            debounced_input.update(clock.try_now().unwrap()),
+            debounced_input.update(clock.now()),
             Ok(DebouncedInputEvent::High)
         );
         assert_eq!(debounced_input.is_high(), true);
     }
 
     assert_eq!(
-        debounced_input.update(clock.try_now().unwrap()),
+        debounced_input.update(clock.now()),
         Ok(DebouncedInputEvent::Fall)
     );
     assert_eq!(debounced_input.is_high(), false);
 
     assert_eq!(
-        debounced_input.update(clock.try_now().unwrap()),
+        debounced_input.update(clock.now()),
         Ok(DebouncedInputEvent::Low)
     );
     assert_eq!(debounced_input.is_high(), false);
@@ -90,13 +88,13 @@ fn debounced_input_success_with_bounce() {
         Ok(false),
     ];
 
-    let clock = MockClock;
+    let mut clock = MockClock::new();
     let input_switch = MockInputSwitch::new(&state_results);
     let mut debounced_input = TestDebouncedInput::new(input_switch);
 
     for _ in 0..6 {
         assert_eq!(
-            debounced_input.update(clock.try_now().unwrap()),
+            debounced_input.update(clock.now()),
             Ok(DebouncedInputEvent::Low)
         );
         assert_eq!(debounced_input.is_high(), false);
@@ -104,7 +102,7 @@ fn debounced_input_success_with_bounce() {
     }
 
     assert_eq!(
-        debounced_input.update(clock.try_now().unwrap()),
+        debounced_input.update(clock.now()),
         Ok(DebouncedInputEvent::Rise)
     );
     assert_eq!(debounced_input.is_high(), true);
@@ -112,7 +110,7 @@ fn debounced_input_success_with_bounce() {
 
     for _ in 0..6 {
         assert_eq!(
-            debounced_input.update(clock.try_now().unwrap()),
+            debounced_input.update(clock.now()),
             Ok(DebouncedInputEvent::High)
         );
         assert_eq!(debounced_input.is_high(), true);
@@ -120,14 +118,14 @@ fn debounced_input_success_with_bounce() {
     }
 
     assert_eq!(
-        debounced_input.update(clock.try_now().unwrap()),
+        debounced_input.update(clock.now()),
         Ok(DebouncedInputEvent::Fall)
     );
     assert_eq!(debounced_input.is_high(), false);
     assert_eq!(debounced_input.is_low(), true);
 
     assert_eq!(
-        debounced_input.update(clock.try_now().unwrap()),
+        debounced_input.update(clock.now()),
         Ok(DebouncedInputEvent::Low)
     );
     assert_eq!(debounced_input.is_high(), false);
@@ -138,19 +136,16 @@ fn debounced_input_success_with_bounce() {
 fn debounced_input_error() {
     let state_results = [Err("Some error"), Ok(true)];
 
-    let clock = MockClock;
+    let mut clock = MockClock::new();
     let input_switch = MockInputSwitch::new(&state_results);
     let mut debounced_input = TestDebouncedInput::new(input_switch);
 
-    assert_eq!(
-        debounced_input.update(clock.try_now().unwrap()),
-        Err("Some error")
-    );
+    assert_eq!(debounced_input.update(clock.now()), Err("Some error"));
     assert_eq!(debounced_input.is_high(), false);
     assert_eq!(debounced_input.is_low(), true);
 
     assert_eq!(
-        debounced_input.update(clock.try_now().unwrap()),
+        debounced_input.update(clock.now()),
         Ok(DebouncedInputEvent::Low)
     );
     assert_eq!(debounced_input.is_high(), false);
