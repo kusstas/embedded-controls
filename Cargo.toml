@@ -1,10 +1,13 @@
 [package]
 name = "embedded-controls"
 authors = ["Stanislav Kusovskyi <kusovsky95@gmail.com>"]
+edition = "2021"
+description = "Based on switch-hal that allows to handle primitive controls(buttons, encoders and etc.)"
+repository = "https://github.com/kusstas/embedded-controls"
+documentation = "https://docs.rs/crate/embedded-controls"
 categories = ["embedded", "hardware-support", "no-std"]
 keywords = ["embedded-hal", "embedded-hal-driver", "encoder", "button", "debounce"]
-version = "0.1.0"
-edition = "2021"
+version = "0.1.1"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 exclude = [
