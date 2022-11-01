@@ -1,7 +1,15 @@
 [package]
 name = "embedded-controls"
+authors = ["Stanislav Kusovskyi <kusovsky95@gmail.com>"]
+categories = ["embedded", "hardware-support", "no-std"]
+keywords = ["embedded-hal", "embedded-hal-driver", "encoder", "button", "debounce"]
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+exclude = [
+    ".vscode/*",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,4 +17,3 @@ edition = "2021"
 switch-hal = "^0.4.0"
 num-integer = "^0.1.45"
 num-traits = "^0.2.15"
-embed-doc-image = "^0.1.4"

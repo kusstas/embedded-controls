@@ -1,9 +1,9 @@
 //! Embedded controls library is based on [switch-hal](https://crates.io/crates/switch-hal)
-//! that allows to handle primitive controls like [DebounceInput](crate::DebouncedInput),
-//! [Encoder](crate::Encoder).
-//! [Controls](crate::Control) are updating by [timestamps](crate::Control::Timestamp)
-//! that passed to [update](crate::Control::update) and return [event](crate::Control::Event)
-//! or [error](crate::Control::Error).
+//! that allows to handle primitive controls like [`DebounceInput`](crate::DebouncedInput),
+//! [`Encoder`](crate::Encoder).
+//! [`Controls`](crate::Control) are updating by [`timestamps`](crate::Control::Timestamp)
+//! that passed to [`update`](crate::Control::update) and return [`event`](crate::Control::Event)
+//! or [`error`](crate::Control::Error).
 
 #![no_std]
 
@@ -19,8 +19,7 @@ use core::fmt::Debug;
 /// Represents an elapsed timer that used for configs.
 /// # Example
 /// ```
-/// use embedded_controls::ElapsedTimer;
-///
+/// # use embedded_controls::ElapsedTimer;
 /// pub struct MyElapsedTimer {
 ///     duration: u32,
 /// }
@@ -54,7 +53,7 @@ pub trait ElapsedTimer {
         -> Result<bool, Self::Error>;
 }
 
-/// Represents a control, such as debounced input, button, encoder.
+/// Represents a control, such as debounced input, button, encoder and etc.
 pub trait Control {
     type Timestamp;
     type Event;
@@ -62,9 +61,6 @@ pub trait Control {
 
     /// Update a control and return an current event or error after update.
     ///
-    /// `now` - current timestamp upon `update` invoke.
-    ///
-    /// # Errors
-    /// This function will return an error if [InputSwitch::is_active](switch_hal::InputSwitch::is_active) returns an error.
+    /// `now` - the current timestamp upon `update` invoke.
     fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error>;
 }

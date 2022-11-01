@@ -5,43 +5,81 @@ use num_integer::Integer;
 use num_traits::{One, Signed, Zero};
 use switch_hal::InputSwitch;
 
-use embed_doc_image::embed_doc_image;
-
-/// Represents a config for [Encoder](crate::Encoder).
-/// ![encoder_edges]
-#[embed_doc_image("encoder_edges", "res/encoder_edges.jpg")]
+/// Represents a config for [`Encoder`](crate::Encoder).
 pub trait EncoderConfig: DebouncedInputConfig {
-    type Counter: AddAssign + Integer + Signed + Copy;
-    const COUNTER_DIVIDER: Self::Counter;
+    /// The type of counts counter.
+    type Counts: AddAssign + Integer + Signed + Copy;
+
+    /// The number of counts to register one turn of the encoder.
+    const COUNTS_DIV: Self::Counts;
 }
 
-pub struct Encoder<InputSwitchA, InputSwitchB, Config: EncoderConfig> {
-    debounced_input_a: DebouncedInput<InputSwitchA, Config>,
-    debounced_input_b: DebouncedInput<InputSwitchB, Config>,
-    counter: Config::Counter,
+/// Concrete implementation of encoder.
+///
+/// # Type Params
+/// `SwitchA` - [`InputSwitch`](switch_hal::InputSwitch) that provides input A channel.
+///
+/// `SwitchB` - [`InputSwitch`](switch_hal::InputSwitch) that provides input B channel.
+///
+/// `Config` - [`EncoderConfig`](crate::EncoderConfig) that provides configs for encoder.
+///
+/// # Example
+/// ```ignore
+/// encoder_config!(
+///     SomeEncoderConfig,
+///     debounce_timer: MyElapsedTimer = MyElapsedTimer::new(2.millis()),
+///     counts_div: i8 = 4
+/// );
+///
+/// type MyEncoder<SwitchA, SwitchB> = Encoder<SwitchA, SwitchB, SomeEncoderConfig>;
+///
+/// let mut clock = SysClock::new();
+/// let mut encoder = MyEncoder::new(
+///     pin_a.into_active_low_switch(),
+///     pin_b.into_active_low_switch(),
+/// );
+///
+/// loop {
+///     match encoder.update(clock.now()).unwrap() {
+///         EncoderEvent::NoTurn => do_something_when_no_turn(),
+///         EncoderEvent::LeftTurn => do_something_upon_left_turn(),
+///         EncoderEvent::RightTurn => do_something_upon_right_turn(),
+///     }
+/// }
+/// ```
+pub struct Encoder<SwitchA: InputSwitch, SwitchB: InputSwitch, Config: EncoderConfig> {
+    debounced_input_a: DebouncedInput<SwitchA, Config>,
+    debounced_input_b: DebouncedInput<SwitchB, Config>,
+    counts: Config::Counts,
     config: PhantomData<Config>,
 }
 
+/// The event result of update [`Encoder`](crate::Encoder).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EncoderEvent {
+    /// Encoder doesn't rotate.
     NoTurn,
-    LeftTurn,
-    RightTurn,
+    /// Encoder rotates clockwise.
+    ClockwiseTurn,
+    /// Encoder rotates counter clockwise.
+    CounterClockwiseTurn,
 }
 
-impl<InputSwitchA, InputSwitchB, Config: EncoderConfig>
-    Encoder<InputSwitchA, InputSwitchB, Config>
+impl<SwitchA: InputSwitch, SwitchB: InputSwitch, Config: EncoderConfig>
+    Encoder<SwitchA, SwitchB, Config>
 {
-    pub fn new(input_switch_a: InputSwitchA, input_switch_b: InputSwitchB) -> Self {
+    /// Creates a new [`Encoder<SwitchA, SwitchB, Config>`] from concretes `SwitchA`, `SwitchB`.
+    pub fn new(input_switch_a: SwitchA, input_switch_b: SwitchB) -> Self {
         Encoder {
             debounced_input_a: DebouncedInput::new(input_switch_a),
             debounced_input_b: DebouncedInput::new(input_switch_b),
-            counter: Zero::zero(),
+            counts: Zero::zero(),
             config: PhantomData::<Config>,
         }
     }
 
-    pub fn release_input_switches(self) -> (InputSwitchA, InputSwitchB) {
+    /// Consumses `self` and release `(SwitchA, SwitchB)`.
+    pub fn release_input_switches(self) -> (SwitchA, SwitchB) {
         (
             self.debounced_input_a.release_input_switch(),
             self.debounced_input_b.release_input_switch(),
@@ -62,48 +100,84 @@ where
         let a_event = self.debounced_input_a.update(now.clone())?;
         let b_event = self.debounced_input_b.update(now)?;
 
-        fn check_event<Counter: Signed>(
+        fn check_event<Counts: Signed>(
             event: DebouncedInputEvent,
             antogonist_state: bool,
-            counter_direct: Counter,
-        ) -> Counter {
+            direct: Counts,
+        ) -> Counts {
             match event {
-                DebouncedInputEvent::Rise if antogonist_state => -counter_direct,
-                DebouncedInputEvent::Rise => counter_direct,
-                DebouncedInputEvent::Fall if antogonist_state => counter_direct,
-                DebouncedInputEvent::Fall => -counter_direct,
+                DebouncedInputEvent::Rise if antogonist_state => -direct,
+                DebouncedInputEvent::Rise => direct,
+                DebouncedInputEvent::Fall if antogonist_state => direct,
+                DebouncedInputEvent::Fall => -direct,
                 _ => Zero::zero(),
             }
         }
 
-        let counter_direct = One::one();
+        let direct = One::one();
 
-        self.counter += check_event(a_event, self.debounced_input_b.is_high(), counter_direct);
-        self.counter += check_event(b_event, self.debounced_input_a.is_high(), -counter_direct);
+        self.counts += check_event(a_event, self.debounced_input_b.is_high(), direct);
+        self.counts += check_event(b_event, self.debounced_input_a.is_high(), -direct);
 
-        let result_event =
-            if !self.counter.is_zero() && (self.counter % Config::COUNTER_DIVIDER).is_zero() {
-                let counter = self.counter;
-                self.counter = Zero::zero();
+        let result_event = if !self.counts.is_zero() && (self.counts % Config::COUNTS_DIV).is_zero()
+        {
+            let counts = self.counts;
+            self.counts = Zero::zero();
 
-                match counter.is_positive() {
-                    true => EncoderEvent::RightTurn,
-                    false => EncoderEvent::LeftTurn,
-                }
-            } else {
-                EncoderEvent::NoTurn
-            };
+            match counts.is_positive() {
+                true => EncoderEvent::ClockwiseTurn,
+                false => EncoderEvent::CounterClockwiseTurn,
+            }
+        } else {
+            EncoderEvent::NoTurn
+        };
 
         Ok(result_event)
     }
 }
 
+/// Create a config for [`Encoder`](crate::Encoder).
+///
+/// # Example 1
+/// ```ignore
+/// encoder_config!(
+///     SomeEncoderConfig,
+///     debounce_timer: MyElapsedTimer = MyElapsedTimer::new(2.millis()),
+///     counts_div: i8 = 4
+/// );
+///
+/// type MyEncoder<SwitchA, SwitchB> = Encoder<SwitchA, SwitchB, SomeEncoderConfig>;
+/// ```
+///
+/// # Example 2
+/// ```ignore
+/// encoder_config!(
+///     pub SomeEncoderConfig,
+///     debounce_timer: MyElapsedTimer = MyElapsedTimer::new(2.millis()),
+///     counts_div: i8 = 4
+/// );
+///
+/// type MyEncoder<SwitchA, SwitchB> = Encoder<SwitchA, SwitchB, SomeEncoderConfig>;
+/// ```
+///
+/// # Example 3
+/// ```ignore
+/// pub struct SomeEncoderConfig;
+///
+/// encoder_config!(
+///     impl SomeEncoderConfig,
+///     debounce_timer: MyElapsedTimer = MyElapsedTimer::new(2.millis()),
+///     counts_div: i8 = 4
+/// );
+///
+/// type MyEncoder<SwitchA, SwitchB> = Encoder<SwitchA, SwitchB, SomeEncoderConfig>;
+/// ```
 #[macro_export]
 macro_rules! encoder_config {
     (
         impl $config_name:ty,
         debounce_timer: $timer_type:ty = $timer_value:expr,
-        counter_divider: $counter_type:ty = $divider_value:expr
+        counts_div: $counts_type:ty = $counts_div_value:expr
     ) => {
         embedded_controls::debounced_input_config!(
             impl $config_name,
@@ -111,20 +185,20 @@ macro_rules! encoder_config {
         );
 
         impl EncoderConfig for $config_name {
-            type Counter = $counter_type;
-            const COUNTER_DIVIDER: $counter_type = $divider_value;
+            type Counts = $counts_type;
+            const COUNTS_DIV: $counts_type = $counts_div_value;
         }
     };
     (
         $vis:vis $config_name:ident,
         debounce_timer: $timer_type:ty = $timer_value:expr,
-        counter_divider: $counter_type:ty = $divider_value:expr
+        counts_div: $counts_type:ty = $counts_div_value:expr
     ) => {
         $vis struct $config_name;
 
         encoder_config!(impl $config_name,
             debounce_timer: $timer_type = $timer_value,
-            counter_divider: $counter_type = $divider_value
+            counts_div: $counts_type = $counts_div_value
         );
     };
 }

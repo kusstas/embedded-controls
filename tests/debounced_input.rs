@@ -11,7 +11,7 @@ debounced_input_config!(
     debounce_timer: MockElapsedTimer = MockElapsedTimer::new(3)
 );
 
-type TestDebouncedInput<InputSwitch> = DebouncedInput<InputSwitch, TestDebouncedInputConfig>;
+type TestDebouncedInput<Switch> = DebouncedInput<Switch, TestDebouncedInputConfig>;
 
 #[test]
 fn debounced_input_success() {

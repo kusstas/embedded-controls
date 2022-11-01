@@ -9,11 +9,10 @@ use embedded_controls::{
 encoder_config!(
     TestEncoderConfig,
     debounce_timer: MockElapsedTimer = MockElapsedTimer::new(1),
-    counter_divider: i8 = 4
+    counts_div: i8 = 4
 );
 
-type TestEncoder<InputSwitchA, InputSwitchB> =
-    Encoder<InputSwitchA, InputSwitchB, TestEncoderConfig>;
+type TestEncoder<SwitchA, SwitchB> = Encoder<SwitchA, SwitchB, TestEncoderConfig>;
 
 #[test]
 fn encoder_success() {
@@ -74,25 +73,31 @@ fn encoder_success() {
         assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::NoTurn));
     }
 
-    assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::RightTurn));
+    assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::ClockwiseTurn));
 
     for _ in 0..3 {
         assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::NoTurn));
     }
 
-    assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::RightTurn));
+    assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::ClockwiseTurn));
 
     for _ in 0..6 {
         assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::NoTurn));
     }
 
-    assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::LeftTurn));
+    assert_eq!(
+        encoder.update(clock.now()),
+        Ok(EncoderEvent::CounterClockwiseTurn)
+    );
 
     for _ in 0..3 {
         assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::NoTurn));
     }
 
-    assert_eq!(encoder.update(clock.now()), Ok(EncoderEvent::LeftTurn));
+    assert_eq!(
+        encoder.update(clock.now()),
+        Ok(EncoderEvent::CounterClockwiseTurn)
+    );
 }
 
 #[test]
