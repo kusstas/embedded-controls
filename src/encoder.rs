@@ -42,8 +42,8 @@ pub trait EncoderConfig: DebouncedInputConfig {
 /// loop {
 ///     match encoder.update(clock.now()).unwrap() {
 ///         EncoderEvent::NoTurn => do_something_when_no_turn(),
-///         EncoderEvent::LeftTurn => do_something_upon_left_turn(),
-///         EncoderEvent::RightTurn => do_something_upon_right_turn(),
+///         EncoderEvent::ClockwiseTurn => do_something_upon_clockwise_turn(),
+///         EncoderEvent::CounterClockwiseTurn => do_something_upon_counter_clockwise_turn(),
 ///     }
 /// }
 /// ```
