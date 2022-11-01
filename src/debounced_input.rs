@@ -1,23 +1,23 @@
-use crate::{Control, Duration};
+use crate::{Control, ElapsedTimer};
 
 use core::marker::PhantomData;
 use switch_hal::InputSwitch;
 
 pub trait DebouncedInputConfig {
-    type D: Duration;
-    const DEBOUNCE_DURATION: Self::D;
+    type Timer: ElapsedTimer;
+    const DEBOUNCE_TIMER: Self::Timer;
 }
 
-pub enum DebouncedInputState<D> {
+pub enum DebouncedInputState<T> {
     FixedLow,
     FixedHigh,
-    RiseDisturbance(D),
-    FallDisturbance(D),
+    RiseDisturbance(T),
+    FallDisturbance(T),
 }
 
 pub struct DebouncedInput<InputSwitch, Config: DebouncedInputConfig> {
     input_switch: InputSwitch,
-    state: DebouncedInputState<<<Config as DebouncedInputConfig>::D as Duration>::Instant>,
+    state: DebouncedInputState<<Config::Timer as ElapsedTimer>::Timestamp>,
     config: PhantomData<Config>,
 }
 
@@ -58,10 +58,10 @@ impl<InputSwitch, Config: DebouncedInputConfig> DebouncedInput<InputSwitch, Conf
     }
 }
 
-impl<Swt: InputSwitch, Cfg: DebouncedInputConfig> Control for DebouncedInput<Swt, Cfg> {
-    type Timestamp = <<Cfg as DebouncedInputConfig>::D as Duration>::Instant;
+impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInput<Switch, Config> {
+    type Timestamp = <Config::Timer as ElapsedTimer>::Timestamp;
     type Event = DebouncedInputEvent;
-    type Error = <Swt as InputSwitch>::Error;
+    type Error = <Switch as InputSwitch>::Error;
 
     fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error> {
         let input_switch_state = self.input_switch.is_active()?;
@@ -83,7 +83,7 @@ impl<Swt: InputSwitch, Cfg: DebouncedInputConfig> Control for DebouncedInput<Swt
                 if !input_switch_state {
                     self.state = DebouncedInputState::FixedLow;
                     DebouncedInputEvent::Low
-                } else if Cfg::DEBOUNCE_DURATION.is_elapsed(start, &now).unwrap() {
+                } else if Config::DEBOUNCE_TIMER.timeout(start, &now).unwrap() {
                     self.state = DebouncedInputState::FixedHigh;
                     DebouncedInputEvent::Rise
                 } else {
@@ -94,7 +94,7 @@ impl<Swt: InputSwitch, Cfg: DebouncedInputConfig> Control for DebouncedInput<Swt
                 if input_switch_state {
                     self.state = DebouncedInputState::FixedHigh;
                     DebouncedInputEvent::High
-                } else if Cfg::DEBOUNCE_DURATION.is_elapsed(start, &now).unwrap() {
+                } else if Config::DEBOUNCE_TIMER.timeout(start, &now).unwrap() {
                     self.state = DebouncedInputState::FixedLow;
                     DebouncedInputEvent::Fall
                 } else {
@@ -103,4 +103,22 @@ impl<Swt: InputSwitch, Cfg: DebouncedInputConfig> Control for DebouncedInput<Swt
             }
         })
     }
+}
+
+#[macro_export]
+macro_rules! debounced_input_config {
+    (impl $config_name:ty, debounce_timer: $timer_type:ty = $timer_value:expr) => {
+        impl DebouncedInputConfig for $config_name {
+            type Timer = $timer_type;
+            const DEBOUNCE_TIMER: $timer_type = $timer_value;
+        }
+    };
+    ($vis:vis $config_name:ident, debounce_timer: $timer_type:ty = $timer_value:expr) => {
+        $vis struct $config_name;
+
+        debounced_input_config!(
+            impl $config_name,
+            debounce_timer: $timer_type = $timer_value
+        );
+    };
 }

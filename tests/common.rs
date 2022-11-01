@@ -1,14 +1,14 @@
 use std::{cell::RefCell, ops::AddAssign};
 
-use embedded_controls::Duration;
+use embedded_controls::ElapsedTimer;
 use switch_hal::InputSwitch;
 
 pub struct MockClock {
     counter: u32,
 }
 
-pub struct MockDuration {
-    counter: u32,
+pub struct MockElapsedTimer {
+    duration: u32,
 }
 
 pub struct MockInputSwitch<'a> {
@@ -29,19 +29,19 @@ impl MockClock {
     }
 }
 
-impl MockDuration {
-    pub const fn new(counter: u32) -> Self {
-        MockDuration { counter }
+impl MockElapsedTimer {
+    pub const fn new(duration: u32) -> Self {
+        MockElapsedTimer { duration }
     }
 }
 
-impl Duration for MockDuration {
+impl ElapsedTimer for MockElapsedTimer {
     type Error = ();
-    type Instant = u32;
+    type Timestamp = u32;
 
-    fn is_elapsed(&self, from: &Self::Instant, to: &Self::Instant) -> Result<bool, Self::Error> {
+    fn timeout(&self, from: &Self::Timestamp, to: &Self::Timestamp) -> Result<bool, Self::Error> {
         if to >= from {
-            Ok((to - from) >= self.counter)
+            Ok((to - from) >= self.duration)
         } else {
             Err(())
         }

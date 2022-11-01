@@ -2,13 +2,19 @@
 
 mod button;
 mod debounced_input;
-mod duration;
 mod encoder;
 
-pub use button::{Button, ButtonConfig, ButtonEvent, DoubleClickEventConfig, HoldEventConfig};
 pub use debounced_input::{DebouncedInput, DebouncedInputConfig, DebouncedInputEvent};
-pub use duration::Duration;
 pub use encoder::{Encoder, EncoderConfig, EncoderEvent};
+
+use core::fmt::Debug;
+
+pub trait ElapsedTimer {
+    type Error: Debug;
+    type Timestamp: Clone;
+
+    fn timeout(&self, from: &Self::Timestamp, to: &Self::Timestamp) -> Result<bool, Self::Error>;
+}
 
 pub trait Control {
     type Timestamp;

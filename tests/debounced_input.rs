@@ -1,15 +1,15 @@
 mod common;
 
-use crate::common::{MockClock, MockDuration, MockInputSwitch};
+use crate::common::{MockClock, MockElapsedTimer, MockInputSwitch};
 
-use embedded_controls::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent};
+use embedded_controls::{
+    debounced_input_config, Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent,
+};
 
-struct TestDebouncedInputConfig;
-
-impl DebouncedInputConfig for TestDebouncedInputConfig {
-    type D = MockDuration;
-    const DEBOUNCE_DURATION: MockDuration = MockDuration::new(3);
-}
+debounced_input_config!(
+    TestDebouncedInputConfig,
+    debounce_timer: MockElapsedTimer = MockElapsedTimer::new(3)
+);
 
 type TestDebouncedInput<InputSwitch> = DebouncedInput<InputSwitch, TestDebouncedInputConfig>;
 

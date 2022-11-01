@@ -1,20 +1,16 @@
 mod common;
 
-use crate::common::{MockClock, MockDuration, MockInputSwitch};
+use crate::common::{MockClock, MockElapsedTimer, MockInputSwitch};
 
-use embedded_controls::{Control, DebouncedInputConfig, Encoder, EncoderConfig, EncoderEvent};
+use embedded_controls::{
+    encoder_config, Control, DebouncedInputConfig, Encoder, EncoderConfig, EncoderEvent,
+};
 
-struct TestEncoderConfig;
-
-impl DebouncedInputConfig for TestEncoderConfig {
-    type D = MockDuration;
-    const DEBOUNCE_DURATION: MockDuration = MockDuration::new(1);
-}
-
-impl EncoderConfig for TestEncoderConfig {
-    type Counter = i8;
-    const COUNTER_DIVIDER: i8 = 4;
-}
+encoder_config!(
+    TestEncoderConfig,
+    debounce_timer: MockElapsedTimer = MockElapsedTimer::new(1),
+    counter_divider: i8 = 4
+);
 
 type TestEncoder<InputSwitchA, InputSwitchB> =
     Encoder<InputSwitchA, InputSwitchB, TestEncoderConfig>;
@@ -31,7 +27,7 @@ fn encoder_success() {
         Ok(false),
         Ok(false),
         Ok(true),
-        // revers direct
+        // reverse direct
         Ok(true),
         Ok(false),
         Ok(false),
@@ -55,7 +51,7 @@ fn encoder_success() {
         Ok(true),
         Ok(false),
         Ok(false),
-        // revers direct
+        // reverse direct
         Ok(false),
         Ok(false),
         Ok(true),

@@ -1,7 +1,8 @@
-use crate::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent, Duration};
+use crate::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent, ElapsedTimer};
 
 use core::{marker::PhantomData, ops::AddAssign};
-use num::{Integer, One, Signed, Zero};
+use num_integer::Integer;
+use num_traits::{One, Signed, Zero};
 use switch_hal::InputSwitch;
 
 pub trait EncoderConfig: DebouncedInputConfig {
@@ -12,7 +13,7 @@ pub trait EncoderConfig: DebouncedInputConfig {
 pub struct Encoder<InputSwitchA, InputSwitchB, Config: EncoderConfig> {
     debounced_input_a: DebouncedInput<InputSwitchA, Config>,
     debounced_input_b: DebouncedInput<InputSwitchB, Config>,
-    counter: <Config as EncoderConfig>::Counter,
+    counter: Config::Counter,
     config: PhantomData<Config>,
 }
 
@@ -43,15 +44,14 @@ impl<InputSwitchA, InputSwitchB, Config: EncoderConfig>
     }
 }
 
-impl<SwtA, SwtB, Cfg: EncoderConfig> Control for Encoder<SwtA, SwtB, Cfg>
+impl<SwitchA: InputSwitch, SwitchB: InputSwitch, Config: EncoderConfig> Control
+    for Encoder<SwitchA, SwitchB, Config>
 where
-    SwtA: InputSwitch,
-    SwtB: InputSwitch,
-    <SwtA as InputSwitch>::Error: From<<SwtB as InputSwitch>::Error>,
+    SwitchA::Error: From<SwitchB::Error>,
 {
-    type Timestamp = <<Cfg as DebouncedInputConfig>::D as Duration>::Instant;
+    type Timestamp = <Config::Timer as ElapsedTimer>::Timestamp;
     type Event = EncoderEvent;
-    type Error = <SwtA as InputSwitch>::Error;
+    type Error = SwitchA::Error;
 
     fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error> {
         let a_event = self.debounced_input_a.update(now.clone())?;
@@ -71,24 +71,55 @@ where
             }
         }
 
-        let one = One::one();
+        let counter_direct = One::one();
 
-        self.counter += check_event(a_event, self.debounced_input_b.is_high(), one);
-        self.counter += check_event(b_event, self.debounced_input_a.is_high(), -one);
+        self.counter += check_event(a_event, self.debounced_input_b.is_high(), counter_direct);
+        self.counter += check_event(b_event, self.debounced_input_a.is_high(), -counter_direct);
 
-        Ok(
-            if self.counter != Zero::zero() && self.counter % Cfg::COUNTER_DIVIDER == Zero::zero() {
-                let turn = if self.counter.is_positive() {
-                    EncoderEvent::RightTurn
-                } else {
-                    EncoderEvent::LeftTurn
-                };
-
+        let result_event =
+            if !self.counter.is_zero() && (self.counter % Config::COUNTER_DIVIDER).is_zero() {
+                let counter = self.counter;
                 self.counter = Zero::zero();
-                turn
+
+                match counter.is_positive() {
+                    true => EncoderEvent::RightTurn,
+                    false => EncoderEvent::LeftTurn,
+                }
             } else {
                 EncoderEvent::NoTurn
-            },
-        )
+            };
+
+        Ok(result_event)
     }
+}
+
+#[macro_export]
+macro_rules! encoder_config {
+    (
+        impl $config_name:ty,
+        debounce_timer: $timer_type:ty = $timer_value:expr,
+        counter_divider: $counter_type:ty = $divider_value:expr
+    ) => {
+        embedded_controls::debounced_input_config!(
+            impl $config_name,
+            debounce_timer: $timer_type = $timer_value
+        );
+
+        impl EncoderConfig for $config_name {
+            type Counter = $counter_type;
+            const COUNTER_DIVIDER: $counter_type = $divider_value;
+        }
+    };
+    (
+        $vis:vis $config_name:ident,
+        debounce_timer: $timer_type:ty = $timer_value:expr,
+        counter_divider: $counter_type:ty = $divider_value:expr
+    ) => {
+        $vis struct $config_name;
+
+        encoder_config!(impl $config_name,
+            debounce_timer: $timer_type = $timer_value,
+            counter_divider: $counter_type = $divider_value
+        );
+    };
 }
