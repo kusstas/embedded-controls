@@ -39,7 +39,11 @@ impl ElapsedTimer for MockElapsedTimer {
     type Error = ();
     type Timestamp = u32;
 
-    fn timeout(&self, from: &Self::Timestamp, to: &Self::Timestamp) -> Result<bool, Self::Error> {
+    fn is_timeout(
+        &self,
+        from: &Self::Timestamp,
+        to: &Self::Timestamp,
+    ) -> Result<bool, Self::Error> {
         if to >= from {
             Ok((to - from) >= self.duration)
         } else {

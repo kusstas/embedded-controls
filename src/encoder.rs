@@ -5,6 +5,11 @@ use num_integer::Integer;
 use num_traits::{One, Signed, Zero};
 use switch_hal::InputSwitch;
 
+use embed_doc_image::embed_doc_image;
+
+/// Represents a config for [Encoder](crate::Encoder).
+/// ![encoder_edges]
+#[embed_doc_image("encoder_edges", "res/encoder_edges.jpg")]
 pub trait EncoderConfig: DebouncedInputConfig {
     type Counter: AddAssign + Integer + Signed + Copy;
     const COUNTER_DIVIDER: Self::Counter;

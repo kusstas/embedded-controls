@@ -3,8 +3,12 @@ use crate::{Control, ElapsedTimer};
 use core::marker::PhantomData;
 use switch_hal::InputSwitch;
 
+/// Represents a config for [DebouncedInput](crate::DebouncedInput).
 pub trait DebouncedInputConfig {
+    /// Elapsed timer type that used for [DebouncedInput](crate::DebouncedInput).
     type Timer: ElapsedTimer;
+    /// Elapsed timer instance that used for [DebouncedInput](crate::DebouncedInput).
+    /// This timer is used for debounce input by timeout after disturbance start.
     const DEBOUNCE_TIMER: Self::Timer;
 }
 
@@ -83,7 +87,7 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
                 if !input_switch_state {
                     self.state = DebouncedInputState::FixedLow;
                     DebouncedInputEvent::Low
-                } else if Config::DEBOUNCE_TIMER.timeout(start, &now).unwrap() {
+                } else if Config::DEBOUNCE_TIMER.is_timeout(start, &now).unwrap() {
                     self.state = DebouncedInputState::FixedHigh;
                     DebouncedInputEvent::Rise
                 } else {
@@ -94,7 +98,7 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
                 if input_switch_state {
                     self.state = DebouncedInputState::FixedHigh;
                     DebouncedInputEvent::High
-                } else if Config::DEBOUNCE_TIMER.timeout(start, &now).unwrap() {
+                } else if Config::DEBOUNCE_TIMER.is_timeout(start, &now).unwrap() {
                     self.state = DebouncedInputState::FixedLow;
                     DebouncedInputEvent::Fall
                 } else {
