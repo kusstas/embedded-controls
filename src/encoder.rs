@@ -1,6 +1,6 @@
 use crate::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent, ElapsedTimer};
 
-use core::{marker::PhantomData, ops::AddAssign};
+use core::ops::AddAssign;
 use num_integer::Integer;
 use num_traits::{One, Signed, Zero};
 use switch_hal::InputSwitch;
@@ -51,7 +51,6 @@ pub struct Encoder<SwitchA: InputSwitch, SwitchB: InputSwitch, Config: EncoderCo
     debounced_input_a: DebouncedInput<SwitchA, Config>,
     debounced_input_b: DebouncedInput<SwitchB, Config>,
     counts: Config::Counts,
-    config: PhantomData<Config>,
 }
 
 /// The event result of update [`Encoder`](crate::Encoder).
@@ -74,7 +73,6 @@ impl<SwitchA: InputSwitch, SwitchB: InputSwitch, Config: EncoderConfig>
             debounced_input_a: DebouncedInput::new(input_switch_a),
             debounced_input_b: DebouncedInput::new(input_switch_b),
             counts: Zero::zero(),
-            config: PhantomData::<Config>,
         }
     }
 
