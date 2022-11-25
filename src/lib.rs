@@ -7,9 +7,10 @@
 
 #![no_std]
 
-mod button;
 mod debounced_input;
 mod encoder;
+
+pub mod macros;
 
 pub use debounced_input::{DebouncedInput, DebouncedInputConfig, DebouncedInputEvent};
 pub use encoder::{Encoder, EncoderConfig, EncoderEvent};

@@ -73,9 +73,15 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> DebouncedInput<Switch, C
     ///
     /// `input_switch` - an concrete instance of `Switch`.
     pub fn new(input_switch: Switch) -> Self {
+        let init_state = if input_switch.is_active().unwrap_or(false) {
+            DebouncedInputState::FixedHigh
+        } else {
+            DebouncedInputState::FixedLow
+        };
+
         DebouncedInput {
             input_switch,
-            state: DebouncedInputState::FixedLow,
+            state: init_state,
             config: PhantomData::<Config>,
         }
     }
@@ -149,55 +155,4 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
             }
         })
     }
-}
-
-/// Create a config for [`DebouncedInput`](crate::DebouncedInput).
-///
-/// # Example 1
-/// ```ignore
-/// debounced_input_config!(
-///     SomeDebouncedInputConfig,
-///     debounce_timer: MyElapsedTimer = MyElapsedTimer::new(20.millis())
-/// );
-///
-/// type MyDebouncedInput<InputSwitch> = DebouncedInput<InputSwitch, SomeDebouncedInputConfig>;
-/// ```
-///
-/// # Example 2
-/// ```ignore
-/// debounced_input_config!(
-///     pub SomeDebouncedInputConfig,
-///     debounce_timer: MyElapsedTimer = MyElapsedTimer::new(20.millis())
-/// );
-///
-/// type MyDebouncedInput<InputSwitch> = DebouncedInput<InputSwitch, SomeDebouncedInputConfig>;
-/// ```
-///
-/// # Example 3
-/// ```ignore
-/// pub struct SomeDebouncedInputConfig;
-///
-/// debounced_input_config!(
-///     impl SomeDebouncedInputConfig,
-///     debounce_timer: MyElapsedTimer = MyElapsedTimer::new(20.millis())
-/// );
-///
-/// type MyDebouncedInput<InputSwitch> = DebouncedInput<InputSwitch, SomeDebouncedInputConfig>;
-/// ```
-#[macro_export]
-macro_rules! debounced_input_config {
-    (impl $config_name:ty, debounce_timer: $timer_type:ty = $timer_value:expr) => {
-        impl DebouncedInputConfig for $config_name {
-            type Timer = $timer_type;
-            const DEBOUNCE_TIMER: $timer_type = $timer_value;
-        }
-    };
-    ($vis:vis $config_name:ident, debounce_timer: $timer_type:ty = $timer_value:expr) => {
-        $vis struct $config_name;
-
-        debounced_input_config!(
-            impl $config_name,
-            debounce_timer: $timer_type = $timer_value
-        );
-    };
 }

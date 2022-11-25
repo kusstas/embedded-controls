@@ -2,9 +2,7 @@ mod common;
 
 use crate::common::{MockClock, MockElapsedTimer, MockInputSwitch};
 
-use embedded_controls::{
-    encoder_config, Control, DebouncedInputConfig, Encoder, EncoderConfig, EncoderEvent,
-};
+use embedded_controls::{encoder_config, Control, Encoder, EncoderEvent};
 
 encoder_config!(
     TestEncoderConfig,
@@ -17,6 +15,7 @@ type TestEncoder<SwitchA, SwitchB> = Encoder<SwitchA, SwitchB, TestEncoderConfig
 #[test]
 fn encoder_success() {
     let state_results_a = [
+        Ok(false),
         Ok(true),
         Ok(true),
         Ok(false),
@@ -41,6 +40,7 @@ fn encoder_success() {
     ];
 
     let state_results_b = [
+        Ok(false),
         Ok(false),
         Ok(true),
         Ok(true),
@@ -102,8 +102,8 @@ fn encoder_success() {
 
 #[test]
 fn encoder_error() {
-    let state_results_a = [Err("Some error 0"), Ok(true), Ok(true)];
-    let state_results_b = [Err("Some error 1"), Ok(true)];
+    let state_results_a = [Ok(false), Err("Some error 0"), Ok(true), Ok(true)];
+    let state_results_b = [Ok(true), Err("Some error 1"), Ok(true)];
 
     let mut clock = MockClock::new();
     let input_switch_a = MockInputSwitch::new(&state_results_a);

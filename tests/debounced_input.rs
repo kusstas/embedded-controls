@@ -2,9 +2,7 @@ mod common;
 
 use crate::common::{MockClock, MockElapsedTimer, MockInputSwitch};
 
-use embedded_controls::{
-    debounced_input_config, Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent,
-};
+use embedded_controls::{debounced_input_config, Control, DebouncedInput, DebouncedInputEvent};
 
 debounced_input_config!(
     TestDebouncedInputConfig,
@@ -33,7 +31,7 @@ fn debounced_input_success() {
     let input_switch = MockInputSwitch::new(&state_results);
     let mut debounced_input = TestDebouncedInput::new(input_switch);
 
-    for _ in 0..4 {
+    for _ in 0..3 {
         assert_eq!(
             debounced_input.update(clock.now()),
             Ok(DebouncedInputEvent::Low)
@@ -92,7 +90,7 @@ fn debounced_input_success_with_bounce() {
     let input_switch = MockInputSwitch::new(&state_results);
     let mut debounced_input = TestDebouncedInput::new(input_switch);
 
-    for _ in 0..6 {
+    for _ in 0..5 {
         assert_eq!(
             debounced_input.update(clock.now()),
             Ok(DebouncedInputEvent::Low)
@@ -134,7 +132,7 @@ fn debounced_input_success_with_bounce() {
 
 #[test]
 fn debounced_input_error() {
-    let state_results = [Err("Some error"), Ok(true)];
+    let state_results = [Ok(false), Err("Some error"), Ok(true)];
 
     let mut clock = MockClock::new();
     let input_switch = MockInputSwitch::new(&state_results);

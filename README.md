@@ -13,7 +13,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-embedded-controls = "0.1.2"
+embedded-controls = "0.1.3"
 ```
 
 Usage in code:
@@ -24,11 +24,9 @@ use embedded_controls::{
     encoder_config,
     Control,
     DebouncedInput,
-    DebouncedInputConfig,
     DebouncedInputEvent,
     ElapsedTimer,
     Encoder,
-    EncoderConfig,
     EncoderEvent,
 };
 
