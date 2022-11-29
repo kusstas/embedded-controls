@@ -34,7 +34,7 @@
 #[macro_export]
 macro_rules! debounced_input_config {
     (impl $config_name:ty, debounce_timer: $timer_type:ty = $timer_value:expr) => {
-        impl embedded_controls::DebouncedInputConfig for $config_name {
+        impl $crate::DebouncedInputConfig for $config_name {
             type Timer = $timer_type;
             const DEBOUNCE_TIMER: $timer_type = $timer_value;
         }
@@ -92,12 +92,12 @@ macro_rules! encoder_config {
         debounce_timer: $timer_type:ty = $timer_value:expr,
         counts_div: $counts_type:ty = $counts_div_value:expr
     ) => {
-        embedded_controls::debounced_input_config!(
+        $crate::debounced_input_config!(
             impl $config_name,
             debounce_timer: $timer_type = $timer_value
         );
 
-        impl embedded_controls::EncoderConfig for $config_name {
+        impl $crate::EncoderConfig for $config_name {
             type Counts = $counts_type;
             const COUNTS_DIV: $counts_type = $counts_div_value;
         }

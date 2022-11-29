@@ -13,7 +13,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-embedded-controls = "0.1.3"
+embedded-controls = "0.1.4"
 ```
 
 Usage in code:
@@ -25,41 +25,19 @@ use embedded_controls::{
     Control,
     DebouncedInput,
     DebouncedInputEvent,
-    ElapsedTimer,
     Encoder,
     EncoderEvent,
 };
-
-pub struct MyElapsedTimer {
-    duration: u32,
-}
-
-// You can implement this trait for embedded-time, cortex-m-rtic, and other time types
-impl ElapsedTimer for MyElapsedTimer {
-    type Error = ();
-    type Timestamp = u32;
-
-    fn is_timeout(
-        &self,
-        from: &Self::Timestamp,
-        to: &Self::Timestamp,
-    ) -> Result<bool, Self::Error> {
-        if to >= from {
-            Ok((to - from) >= self.duration)
-        } else {
-            Err(())
-        }
-    }
-}
+use timestamp_source::Timer;
 
 debounced_input_config!(
     MyDebouncedInputConfig,
-    debounce_timer: MyElapsedTimer = MyElapsedTimer::new(30)
+    debounce_timer: Timer<SomeTimestamp> = Timer::new(30.millis())
 );
 
 encoder_config!(
     MyEncoderConfig,
-    debounce_timer: MyElapsedTimer = MyElapsedTimer::new(2),
+    debounce_timer: Timer<SomeTimestamp> = Timer::new(2.millis())
     counts_div: i8 = 4
 );
 
@@ -70,7 +48,6 @@ fn main() {
     let pin_debounced_input; // Some pin for debounced input
     let pin_encoder_a; // Some pin for channel A of encoder
     let pin_encoder_b; // Some pin for channel B of encoder
-    let clock; // Some clock instance
 
     let mut my_debounced_input = MyDebouncedInput::new(
         pin_debounced_input.into_active_low_switch()
@@ -82,14 +59,14 @@ fn main() {
     );
 
     loop {
-        match my_debounced_input.update(clock.now()).unwrap() {
+        match my_debounced_input.update().unwrap() {
             DebouncedInputEvent::Low => do_something_when_low(),
             DebouncedInputEvent::High => do_something_when_high(),
             DebouncedInputEvent::Rise => do_something_upon_rise(),
             DebouncedInputEvent::Fall => do_something_upon_fall(),
         }
 
-        match encoder.update(clock.now()).unwrap() {
+        match encoder.update().unwrap() {
             EncoderEvent::NoTurn => do_something_when_no_turn(),
             EncoderEvent::ClockwiseTurn => do_something_upon_clockwise_turn(),
             EncoderEvent::CounterClockwiseTurn => do_something_upon_counter_clockwise_turn(),

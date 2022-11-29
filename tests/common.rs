@@ -1,14 +1,10 @@
 use std::{cell::RefCell, ops::AddAssign};
 
-use embedded_controls::ElapsedTimer;
 use switch_hal::InputSwitch;
+use timestamp_source::Timestamp;
 
-pub struct MockClock {
-    counter: u32,
-}
-
-pub struct MockElapsedTimer {
-    duration: u32,
+pub struct MockTimestamp {
+    ticks: u32,
 }
 
 pub struct MockInputSwitch<'a> {
@@ -16,39 +12,25 @@ pub struct MockInputSwitch<'a> {
     index: RefCell<usize>,
 }
 
-impl MockClock {
-    pub fn new() -> Self {
-        MockClock {
-            counter: Default::default(),
-        }
-    }
-
-    pub fn now(&mut self) -> u32 {
-        self.counter += 1;
-        self.counter
-    }
-}
-
-impl MockElapsedTimer {
-    pub const fn new(duration: u32) -> Self {
-        MockElapsedTimer { duration }
-    }
-}
-
-impl ElapsedTimer for MockElapsedTimer {
+impl Timestamp for MockTimestamp {
+    type Duration = u32;
     type Error = ();
-    type Timestamp = u32;
 
-    fn is_timeout(
-        &self,
-        from: &Self::Timestamp,
-        to: &Self::Timestamp,
-    ) -> Result<bool, Self::Error> {
-        if to >= from {
-            Ok((to - from) >= self.duration)
-        } else {
-            Err(())
+    fn now() -> Self {
+        static mut TICKS: u32 = 0;
+
+        unsafe {
+            TICKS += 1;
+            MockTimestamp { ticks: TICKS }
         }
+    }
+
+    fn duration_since_epoch(self) -> Self::Duration {
+        self.ticks
+    }
+
+    fn duration_since(&self, other: &Self) -> Result<Self::Duration, Self::Error> {
+        Ok(self.ticks - other.ticks)
     }
 }
 

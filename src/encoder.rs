@@ -1,4 +1,4 @@
-use crate::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent, ElapsedTimer};
+use crate::{Control, DebouncedInput, DebouncedInputConfig, DebouncedInputEvent};
 
 use core::ops::AddAssign;
 use num_integer::Integer;
@@ -33,14 +33,13 @@ pub trait EncoderConfig: DebouncedInputConfig {
 ///
 /// type MyEncoder<SwitchA, SwitchB> = Encoder<SwitchA, SwitchB, SomeEncoderConfig>;
 ///
-/// let mut clock = SysClock::new();
 /// let mut encoder = MyEncoder::new(
 ///     pin_a.into_active_low_switch(),
 ///     pin_b.into_active_low_switch(),
 /// );
 ///
 /// loop {
-///     match encoder.update(clock.now()).unwrap() {
+///     match encoder.update().unwrap() {
 ///         EncoderEvent::NoTurn => do_something_when_no_turn(),
 ///         EncoderEvent::ClockwiseTurn => do_something_upon_clockwise_turn(),
 ///         EncoderEvent::CounterClockwiseTurn => do_something_upon_counter_clockwise_turn(),
@@ -88,15 +87,15 @@ impl<SwitchA: InputSwitch, SwitchB: InputSwitch, Config: EncoderConfig>
 impl<SwitchA: InputSwitch, SwitchB: InputSwitch, Config: EncoderConfig> Control
     for Encoder<SwitchA, SwitchB, Config>
 where
-    SwitchA::Error: From<SwitchB::Error>,
+    <DebouncedInput<SwitchA, Config> as Control>::Error:
+        From<<DebouncedInput<SwitchB, Config> as Control>::Error>,
 {
-    type Timestamp = <Config::Timer as ElapsedTimer>::Timestamp;
     type Event = EncoderEvent;
-    type Error = SwitchA::Error;
+    type Error = <DebouncedInput<SwitchA, Config> as Control>::Error;
 
-    fn update(&mut self, now: Self::Timestamp) -> Result<Self::Event, Self::Error> {
-        let a_event = self.debounced_input_a.update(now.clone())?;
-        let b_event = self.debounced_input_b.update(now)?;
+    fn update(&mut self) -> Result<Self::Event, Self::Error> {
+        let a_event = self.debounced_input_a.update()?;
+        let b_event = self.debounced_input_b.update()?;
 
         fn check_event<Counts: Signed>(
             event: DebouncedInputEvent,
