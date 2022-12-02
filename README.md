@@ -13,7 +13,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-embedded-controls = "0.1.4"
+embedded-controls = "0.1.5"
 ```
 
 Usage in code:

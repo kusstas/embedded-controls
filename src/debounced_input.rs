@@ -1,4 +1,4 @@
-use crate::{prop_error, Control, Error};
+use crate::{Control, Error};
 
 use core::marker::PhantomData;
 use switch_hal::InputSwitch;
@@ -117,7 +117,10 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
 
     fn update(&mut self) -> Result<Self::Event, Self::Error> {
         let now = <Config::Timer as ElapsedTimer>::Timestamp::now();
-        let input_switch_state = prop_error!(self.input_switch.is_active(), Error::InputSwitch);
+        let input_switch_state = self
+            .input_switch
+            .is_active()
+            .map_err(|err| Error::InputSwitch(err))?;
 
         Ok(match &self.state {
             DebouncedInputState::FixedLow => {
@@ -136,10 +139,10 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
                 if !input_switch_state {
                     self.state = DebouncedInputState::FixedLow;
                     DebouncedInputEvent::Low
-                } else if prop_error!(
-                    Config::DEBOUNCE_TIMER.is_timeout(start, &now),
-                    Error::ElapsedTimer
-                ) {
+                } else if Config::DEBOUNCE_TIMER
+                    .timeout(start, &now)
+                    .map_err(|err| Error::ElapsedTimer(err))?
+                {
                     self.state = DebouncedInputState::FixedHigh;
                     DebouncedInputEvent::Rise
                 } else {
@@ -150,10 +153,10 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
                 if input_switch_state {
                     self.state = DebouncedInputState::FixedHigh;
                     DebouncedInputEvent::High
-                } else if prop_error!(
-                    Config::DEBOUNCE_TIMER.is_timeout(start, &now),
-                    Error::ElapsedTimer
-                ) {
+                } else if Config::DEBOUNCE_TIMER
+                    .timeout(start, &now)
+                    .map_err(|err| Error::ElapsedTimer(err))?
+                {
                     self.state = DebouncedInputState::FixedLow;
                     DebouncedInputEvent::Fall
                 } else {

@@ -1,9 +1,6 @@
 //! Embedded controls library is based on [switch-hal](https://crates.io/crates/switch-hal)
 //! that allows to handle primitive controls like [`DebounceInput`](crate::DebouncedInput),
 //! [`Encoder`](crate::Encoder).
-//! [`Controls`](crate::Control) are updating by [`timestamps`](crate::Control::Timestamp)
-//! that passed to [`update`](crate::Control::update) and return [`event`](crate::Control::Event)
-//! or [`error`](crate::Control::Error).
 
 #![no_std]
 
