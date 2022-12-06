@@ -56,7 +56,7 @@ pub struct DebouncedInput<Switch: InputSwitch, Config: DebouncedInputConfig> {
 }
 
 /// The event result of update [`DebouncedInput`](crate::DebouncedInput).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DebouncedInputEvent {
     /// Stable low state, the input is inactive.
     Low,
@@ -117,10 +117,7 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
 
     fn update(&mut self) -> Result<Self::Event, Self::Error> {
         let now = <Config::Timer as ElapsedTimer>::Timestamp::now();
-        let input_switch_state = self
-            .input_switch
-            .is_active()
-            .map_err(|err| Error::InputSwitch(err))?;
+        let input_switch_state = self.input_switch.is_active().map_err(Error::InputSwitch)?;
 
         Ok(match &self.state {
             DebouncedInputState::FixedLow => {
@@ -141,7 +138,7 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
                     DebouncedInputEvent::Low
                 } else if Config::DEBOUNCE_TIMER
                     .timeout(start, &now)
-                    .map_err(|err| Error::ElapsedTimer(err))?
+                    .map_err(Error::ElapsedTimer)?
                 {
                     self.state = DebouncedInputState::FixedHigh;
                     DebouncedInputEvent::Rise
@@ -155,7 +152,7 @@ impl<Switch: InputSwitch, Config: DebouncedInputConfig> Control for DebouncedInp
                     DebouncedInputEvent::High
                 } else if Config::DEBOUNCE_TIMER
                     .timeout(start, &now)
-                    .map_err(|err| Error::ElapsedTimer(err))?
+                    .map_err(Error::ElapsedTimer)?
                 {
                     self.state = DebouncedInputState::FixedLow;
                     DebouncedInputEvent::Fall

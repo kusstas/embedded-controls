@@ -43,7 +43,7 @@ impl<'a> MockInputSwitch<'a> {
     }
 
     pub fn next(&self) -> Result<bool, &'static str> {
-        let state_result = self.state_results[*self.index.borrow() as usize].clone();
+        let state_result = self.state_results[*self.index.borrow() as usize];
 
         self.index.try_borrow_mut().unwrap().add_assign(1);
 

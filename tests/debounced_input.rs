@@ -35,22 +35,22 @@ fn debounced_input_success() {
 
     for _ in 0..3 {
         assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Low));
-        assert_eq!(debounced_input.is_high(), false);
+        assert!(!debounced_input.is_high());
     }
 
     assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Rise));
-    assert_eq!(debounced_input.is_high(), true);
+    assert!(debounced_input.is_high());
 
     for _ in 0..4 {
         assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::High));
-        assert_eq!(debounced_input.is_high(), true);
+        assert!(debounced_input.is_high());
     }
 
     assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Fall));
-    assert_eq!(debounced_input.is_high(), false);
+    assert!(!debounced_input.is_high());
 
     assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Low));
-    assert_eq!(debounced_input.is_high(), false);
+    assert!(!debounced_input.is_high());
 }
 
 #[test]
@@ -78,27 +78,27 @@ fn debounced_input_success_with_bounce() {
 
     for _ in 0..5 {
         assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Low));
-        assert_eq!(debounced_input.is_high(), false);
-        assert_eq!(debounced_input.is_low(), true);
+        assert!(!debounced_input.is_high());
+        assert!(debounced_input.is_low());
     }
 
     assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Rise));
-    assert_eq!(debounced_input.is_high(), true);
-    assert_eq!(debounced_input.is_low(), false);
+    assert!(debounced_input.is_high());
+    assert!(!debounced_input.is_low());
 
     for _ in 0..6 {
         assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::High));
-        assert_eq!(debounced_input.is_high(), true);
-        assert_eq!(debounced_input.is_low(), false);
+        assert!(debounced_input.is_high());
+        assert!(!debounced_input.is_low());
     }
 
     assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Fall));
-    assert_eq!(debounced_input.is_high(), false);
-    assert_eq!(debounced_input.is_low(), true);
+    assert!(!debounced_input.is_high());
+    assert!(debounced_input.is_low());
 
     assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Low));
-    assert_eq!(debounced_input.is_high(), false);
-    assert_eq!(debounced_input.is_low(), true);
+    assert!(!debounced_input.is_high());
+    assert!(debounced_input.is_low());
 }
 
 #[test]
@@ -112,10 +112,11 @@ fn debounced_input_error() {
         debounced_input.update(),
         Err(Error::InputSwitch("Some error"))
     );
-    assert_eq!(debounced_input.is_high(), false);
-    assert_eq!(debounced_input.is_low(), true);
+
+    assert!(!debounced_input.is_high());
+    assert!(debounced_input.is_low());
 
     assert_eq!(debounced_input.update(), Ok(DebouncedInputEvent::Low));
-    assert_eq!(debounced_input.is_high(), false);
-    assert_eq!(debounced_input.is_low(), true);
+    assert!(!debounced_input.is_high());
+    assert!(debounced_input.is_low());
 }

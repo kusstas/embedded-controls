@@ -53,7 +53,7 @@ pub struct Encoder<SwitchA: InputSwitch, SwitchB: InputSwitch, Config: EncoderCo
 }
 
 /// The event result of update [`Encoder`](crate::Encoder).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EncoderEvent {
     /// Encoder doesn't rotate.
     NoTurn,
